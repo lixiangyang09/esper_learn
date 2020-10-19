@@ -1,12 +1,14 @@
 package lxy.model;
 
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NonNull;
-import lombok.Value;
+import lombok.ToString;
 
 @Builder
-@Value
-public class AggMd {
+@Getter
+@ToString
+public class TableFireEvent {
     @NonNull
     Long index;
 }

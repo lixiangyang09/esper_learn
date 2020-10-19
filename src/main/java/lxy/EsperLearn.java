@@ -1,22 +1,16 @@
 package lxy;
 
-import com.espertech.esper.common.client.EPCompiled;
 import com.espertech.esper.common.client.configuration.Configuration;
 import com.espertech.esper.common.client.metric.RuntimeMetric;
 import com.espertech.esper.common.client.metric.StatementMetric;
-import com.espertech.esper.common.client.module.Module;
-import com.espertech.esper.common.client.module.ModuleItem;
 import com.espertech.esper.compiler.client.CompilerArguments;
-import com.espertech.esper.compiler.client.EPCompiler;
-import com.espertech.esper.compiler.client.EPCompilerProvider;
-import com.espertech.esper.runtime.client.EPDeployment;
+import com.espertech.esper.runtime.client.EPRuntime;
 import com.espertech.esper.runtime.client.EPRuntimeProvider;
-import com.espertech.esper.runtime.client.EPStatement;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import lxy.model.AggMd;
 import lxy.model.MarketData;
-import lxy.receiver.MarketDataReceiver;
-import lxy.receiver.MetricsReceiver;
+import lxy.model.TableFireEvent;
 
 import java.util.Random;
 import java.util.concurrent.locks.LockSupport;
@@ -27,7 +21,6 @@ public class EsperLearn {
     @SneakyThrows
     public static void main(String[] args) {
         // Compiling EPL
-        EPCompiler compiler = EPCompilerProvider.getCompiler();
         // This could also be done in a configuration file.
         Configuration configuration = new Configuration();
         configuration.getCompiler().getByteCode().setAllowSubscriber(true);
@@ -39,39 +32,36 @@ public class EsperLearn {
         configuration.getRuntime().getMetricsReporting().setEnableMetricsReporting(true);
 
         configuration.getCommon().addEventType(MarketData.class);
-        CompilerArguments compilerArguments = new CompilerArguments(configuration);
-
-        Module module = new Module();
-        module.getItems().add(new ModuleItem("@name('marketdata-statement') select * from MarketData"));
-
-        // metrics
-        module.getItems().add(new ModuleItem("@name('RuntimeMetric-statement')  select * from RuntimeMetric"));
-        module.getItems().add(new ModuleItem("@name('StatementMetric-statement')  select * from StatementMetric"));
+        configuration.getCommon().addEventType(AggMd.class);
+        configuration.getCommon().addEventType(TableFireEvent.class);
 
 
-        // Compile a module
-        EPCompiled epCompiled = compiler.compile(module, compilerArguments);
+        EPRuntime runtime = EPRuntimeProvider.getDefaultRuntime(configuration);
+        DeployHelper deployHelper = new DeployHelper(
+                runtime,
+                new CompilerArguments(configuration));
 
-        // Get runtime
-        var runtime = EPRuntimeProvider.getDefaultRuntime(configuration);
+        deployHelper.demo(DemoType.EPL_PATTERN);
 
-        // deploy compiled module
-        EPDeployment deployment;
-        deployment = runtime.getDeploymentService().deploy(epCompiled);
-        EPStatement statement = runtime.getDeploymentService().getStatement(deployment.getDeploymentId(), "marketdata-statement");
-        statement.setSubscriber(new MarketDataReceiver());
-        MetricsReceiver metricsReceiver = new MetricsReceiver();
-        EPStatement statementMetrics1 = runtime.getDeploymentService().getStatement(deployment.getDeploymentId(), "RuntimeMetric-statement");
-        EPStatement statementMetrics2 = runtime.getDeploymentService().getStatement(deployment.getDeploymentId(), "StatementMetric-statement");
-        statementMetrics1.setSubscriber(metricsReceiver);
-        statementMetrics2.setSubscriber(metricsReceiver);
-
+        long index = 0;
         while (true) {
             LockSupport.parkNanos((long) 1e9);
             var random = new Random();
-            var msg = MarketData.builder().exDestination(String.format("ex%d", random.nextInt())).build();
+            var msg = MarketData.builder().exDestination(String.format("ex%d", random.nextInt(10))).amount(random.nextInt(100)).timestamp(System.currentTimeMillis() / 1000).groupIndex(index % 5).index(index).build();
             log.info("send event to runtime: {}", msg);
             runtime.getEventService().sendEventBean(msg, msg.getClass().getSimpleName());
+
+            var tableFireEvent = TableFireEvent.builder().index(index % 5).build();
+            log.info("send event to runtime: {}", tableFireEvent);
+            runtime.getEventService().sendEventBean(tableFireEvent, tableFireEvent.getClass().getSimpleName());
+
+            index++;
+            if (index % 10 == 0) {
+                var aggMd = AggMd.builder().index(index).build();
+                log.info("send event to runtime: {}", aggMd);
+                runtime.getEventService().sendEventBean(aggMd, aggMd.getClass().getSimpleName());
+            }
         }
     }
+
 }
