@@ -10,12 +10,18 @@ import lxy.model.MarketData;
 import lxy.model.TableFireEvent;
 
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 
 @Slf4j
 public class MarketDataReceiver {
+
+    public void update(@NonNull EPStatement statement, @NonNull MarketData[] marketDatas) {
+        log.info("MarketDataReceiver, update receive message from {}. marketDatas: {}", statement, marketDatas);
+
+    }
 
     public void update(@NonNull EPStatement statement, @NonNull MarketData marketData) {
         log.info("MarketDataReceiver, update receive message from {}. marketData: {}", statement, marketData);
@@ -52,9 +58,12 @@ public class MarketDataReceiver {
 
     }
 
-    public void update(@NonNull EPStatement statement, @NonNull Map<?, ?> res) {
+    public void update(@NonNull EPStatement statement, @NonNull Map res) {
         // var dataWindow = (MarketData[]) res.get("myWindow");
         log.info("MarketDataReceiver, update receive message from {}.\n res: {}", statement, res);
+        for (var tmp : (MarketData[])res.get("myWindow")) {
+            log.info("myWindow event: {}", tmp);
+        }
     }
 
     public void update(@NonNull EPStatement statement, @NonNull TableFireEvent fireEvent, @NonNull MarketData marketData) {

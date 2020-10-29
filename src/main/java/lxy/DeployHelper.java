@@ -99,7 +99,7 @@ public class DeployHelper {
             case WHERE:
                 deployEpls(
                         Arrays.asList("where"),
-                        Arrays.asList("@name('where')   select * from MarketData as md, select * from AggMd as agg where md.index == agg.index"),
+                        Arrays.asList("@name('where')   select * from MarketData#lastevent as md, AggMd#lastevent as agg where md.index = agg.index"),
                         new MarketDataReceiver());
                 break;
             case TIME_WINDOW_AGGREGATION:
@@ -132,15 +132,14 @@ public class DeployHelper {
                 deployEpls(
                         Arrays.asList("named_window"),
                         Arrays.asList("create window MarketDataWindow#time(10) as MarketData",
-                                "on MarketData merge MarketDataWindow insert select *",
-                                "@name('named_window')  select avg(amount) as avgAmount from MarketDataWindow"),
+                                "@name('named_window') on MarketData merge MarketDataWindow insert select *"),
                         new MarketDataReceiver());
                 break;
             case TABLE:
                 deployEpls(
                         Arrays.asList("table"),
                         Arrays.asList("create table MarketAvgAmount(groupIndex long primary key, avgAmount avg(int), myWindow window(*) @type(MarketData))",
-                                "into table MarketAvgAmount select avg(amount) as avgAmount, window(*) as myWindow from MarketData#time(10) group by groupIndex",
+                                "into table MarketAvgAmount select avg(amount) as avgAmount, window(*) as myWindow from MarketData#time(20) group by groupIndex",
                                 "@name('table')  select MarketAvgAmount[index] from TableFireEvent"),
                         new MarketDataReceiver());
                 break;
@@ -209,11 +208,11 @@ public class DeployHelper {
 //                        Arrays.asList("epl_pattern1""),
 //                        Arrays.asList("@name('epl_pattern1') select * from pattern [every a=MarketData or b=AggMd]"),
 
-//                        Arrays.asList("epl_pattern2"),
-//                        Arrays.asList("@name('epl_pattern1') select * from pattern [every a=MarketData -> AggMd]"),
+                        Arrays.asList("epl_pattern2"),
+                        Arrays.asList("@name('epl_pattern2') select * from pattern [every MarketData -> AggMd]"),
 
-                        Arrays.asList("epl_pattern3"),
-                        Arrays.asList("@name('epl_pattern3') select * from pattern [every a=MarketData -> b=TableFireEvent(a.index=b.index) where timer:within(2 seconds)]"),
+//                        Arrays.asList("epl_pattern3"),
+//                        Arrays.asList("@name('epl_pattern3') select * from pattern [every a=MarketData -> b=TableFireEvent(a.index=b.index) where timer:within(2 seconds)]"),
                         new MarketDataReceiver());
                 break;
             default:

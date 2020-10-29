@@ -41,7 +41,7 @@ public class EsperLearn {
                 runtime,
                 new CompilerArguments(configuration));
 
-        deployHelper.demo(DemoType.EPL_PATTERN);
+        deployHelper.demo(DemoType.TABLE);
 
         long index = 0;
         while (true) {
